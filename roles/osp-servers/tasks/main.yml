@@ -1,10 +1,52 @@
 ---
-
-# tasks file for osp.servers
 - name: Create new server instances and attaches them a network and passes metadata to the instance
-
+  vars:
+    hostname: "{{ item[0] }}"
+    params: "{{ item[1] }}"
+  os_server:
+    name: "{{ hostname }}"
+    state: "{{ params.state }}"
+    image: "{{ params.image }}"
+    key_name: "{{ params.key_name }}"
+    flavor: "{{ params.flavor }}"
+    security_groups: "{{ params.security_group }}"
+    meta: "{{ params.meta[0] }}"
+    auto_ip: true
+    wait: true
+    nics:
+      - net-name: ext_network
+      - net-name: int_network
+  loop: "{{ osp_servers.items() }}"
+  loop_control:
+    label: "{{ hostname }}"
 
 - name: Add floating IP to Servers
-   
+  os_floating_ip:
+    server: "{{ item }}"
+    network: ext_network
+  loop: "{{ osp_servers.keys() }}"
+
+- name: Get instance information
+  os_server_info:
+  register: instance_info_job
+
+- name: Add hosts to inventory
+  add_host:
+    name: "{{ item.hostname }}"
+    groups:
+      - "{{ item.metadata.group }}"
+      - "{{ item.metadata.deployment_name }}"
+    ansible_host: "{{ item.public_v4 }}"
+  loop: "{{ instance_info_job.openstack_servers }}"
+  loop_control:
+    label: "{{ item.hostname }}"
 
 - name: Wait for server to be available
+  wait_for:
+    host: "{{ item.public_v4 }}"
+    port: 22
+    search_regex: '^SSH-'
+  loop: "{{ instance_info_job.openstack_servers }}"
+  loop_control:
+    label: "{{ item.hostname }}"
+  delegate_to: workstation
