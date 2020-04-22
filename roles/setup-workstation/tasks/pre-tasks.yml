@@ -7,8 +7,13 @@
 - name: Install openstacksdk library
   pip:
     name: openstacksdk
-    state: latest
-    extra_args: -U
+    state: present
+    version: 0.39.0
+- name: Install py2 compatible decorator module
+  pip:
+    name: decorator
+    state: present
+    version: 4.4.1
 - name: Create clouds.yaml file
   blockinfile:
     create: yes
